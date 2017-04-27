@@ -1,0 +1,526 @@
+---
+title: "TASI (Tadawul All Share Index) Exploration by Haya"
+output: 
+  html_document:
+    fig_width: 6
+    fig_height: 4
+
+---
+
+
+
+```{r setup, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#install.packages("rmarkdown")
+#install.packages("ggplot2")
+#install.packages("reshape2")
+#install.packages("knitr")
+#install.packages("dplyr")
+#install.packages("gridExtra")
+
+require(reshape2)
+library(ggplot2)
+library(grid)
+library(dplyr)
+require('gridExtra')
+```
+
+
+# History behind TASI.csv:
+
+This data is collected by DirectFN Pro software (v 0.10.003.09) which is a client-server based real-time market information dissemination and trade solution, targeted at active traders and sophisticated investors and connects to  Regional and International stock exchanges. [Press here to visit](http://download.mubasher.net/downloads/en/download.aspx).
+
+# Data wrangling and cleaning:
+
+I have did a little improvement in headers name to be understandable and also avoid problematical characters like ( .%$& etc.).
+
+to change some headers name. ex: X..Chg. to Change_Percentage
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#getwd()
+setwd('~/Data Analysis Nanodegree/P4/project') 
+#list.files() 
+TASI <- read.csv('TASI-EN.csv')
+names(TASI)
+colnames(TASI)[which(names(TASI) == "X..Chg.")] <- "Change_Percentage"
+colnames(TASI)[which(names(TASI) == "Prev..Closed")] <- "Previous_Closed"
+#names(TASI)[names(TASI) == 'old'] <- 'new'
+```
+
+
+As I mentioned before this data is auto generated so no NA or Mismatching data.
+
+# A stream-of-consciousness analysis and exploration of the data.
+
+This report explores a dataset containing changing points of the main index in Saudi Arabia stock market (TASI) and observation for approximately 6378 days from  1994 to 2017. every row in the data set give a detailed summary of TASI index in a selected day.  It contains 10 headers ( variable ) as following:
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+names(TASI)
+str(TASI)
+```
+A quick details of the meaning of each variables :
+
+1,  *Date:*  A particular data of trading except weekend and holidays.
+2,  *Open:* Opining point.
+3,  *High:* Highest point.
+4,  *Low:* Lowest point
+5,  *Closed:* Closing point
+6,  *Change_Percentage:* Change percentage.
+7,  *Change:* Change points.
+8,  *Previous_Closed:* Previous close.
+9,  *Volume:* Total quantity of shares or contracts traded for a specified security. It can be measured on any type of security traded during a trading day
+10, *Turnover:* Total price amount of sale and buy.
+
+
+
+
+Also, I have converted the data format to %y-%m-%d just to avoid any error later on. furthermore, I have changed weekly break point to Sunday as it is in Kingdom of Saudi Arabia.
+
+convert date variable from factor to date format:
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+TASI$Date <- as.Date(TASI$Date,"%Y/%m/%d") 
+TASI$Year = format(TASI$Date, "%Y")
+TASI$Month = format(TASI$Date, "%m")
+TASI$Day = format(TASI$Date, "%d")
+
+```
+
+using sapply() to get MEAN OF DF (TASI) or summary() can be used to get full STATISTICAL summary.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+summary(TASI)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+ggplot(data = TASI,
+       aes(Month, Change_Percentage))+
+  geom_bar(stat ="sum")+
+  facet_wrap(~Year,ncol=6)+
+    ggtitle("Changes% in TASI of Saudi Arabia") +
+    labs(x="Month",y="changes %") +
+    theme(axis.title = element_text( color="#666666", face="bold", size=13)) 
+```
+
+In trading of January 1994, I noticed that the rate of changing in TASI index was 100%! very intersting value. Zooming to that month:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+by(TASI$Change, TASI$Year, summary)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+TASI1994<- subset(TASI, TASI$Year == 1994 & TASI$Month == '01')
+summary(TASI1994)
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+ggplot(aes(x = Day, 
+           y = Change_Percentage), 
+       data = TASI1994) +
+      geom_bar(stat="identity",color= '#ac3907') +
+  scale_y_continuous( breaks = seq(-1,100,50))+
+  ggtitle("Changes in TASI on Januagry 1994") 
+
+
+
+```
+
+So, The reason behind the high value in January 1994 is TASI index increasd 100% points. changing the scale is not enough to refine plot as the onther values are too small comparing with day 26
+lets get the info of that row: 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+subset(TASI1994, TASI1994$Change_Percentage==100)
+```
+It is impossible increased where Open and Closed columns values are equal! Changes column represent the change between open and closed point. In this row open = 1751.71 and closed = 1751.71 ->  1751.71 - 1751.71 = 0 NOT 1751.71 and the actual percentage change = 0% NOT 100% as shown !!! 
+I decide to remove ((after I did a random chicking with no similar problem at result.))
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+TASI1994C<- subset(TASI, TASI$Year == 1994 & TASI$Month == '01'& TASI$Day >26)
+
+ggplot(data = TASI1994C,
+       aes(Day, Change)) +
+  stat_summary(fun.y = sum, 
+               geom = "bar",scale="free") +
+  labs(y="changes (Points)") +
+  ggtitle("Changes in TASI in Januagry 1994 after ignoring day 26") 
+
+```
+
+```{r}
+DF<- subset(TASI, TASI$Change_Percentage<100)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+gC1<- ggplot(data = DF,
+       aes(Month, Change_Percentage))+
+  geom_bar(stat ="identity")+
+  scale_alpha_continuous(breaks = 1:12)+
+  facet_wrap(~Year,ncol=6)+
+  scale_y_continuous( breaks = seq(-80,100,20))+
+  ggtitle("Changes in TASI index of Saudi Arabia month/year") +
+  labs(x="Year",y="changes %") +
+  theme(axis.title = element_text( color="#666666", face="bold", size=13)) 
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+gC2<- ggplot(data = TASI1994C,
+       aes(Day, Change)) +
+  stat_summary(fun.y = sum, 
+               geom = "bar",scale="free") 
+
+grid.arrange(gC1,gC2,ncol=2, top=textGrob("Changes in TASI index of Saudi Arabia month/year"))
+
+```
+
+
+
+After did some investigation about the high data on January 1994, now it is clear that the 1994 was Reaping profits where the TASI index taking clearly negative way comparitively with the volume of increasing.
+
+
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(aes(x = Month, y = Change, color = (Volume)), 
+       data = DF) +
+       geom_jitter(alpha = 0.3 ,size=1) +
+  scale_y_continuous(breaks = seq(-1000,1000,500))+
+  labs(x="Month",y="changes (Point)") +
+  facet_wrap(~Year)+
+  ggtitle("The changes of TASI and volume of stocks monthly trading")
+```
+
+
+from the pervious charts I noticed a large wavering in TASI changes regarding to the turnover and volume of trading in 2006 then 2008 and 2005.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+qplot(x = Turnover, data = DF)+
+  stat_bin(bins = 50)+
+  facet_wrap(~Year)+
+  labs(x="Turnover (Saudi Riyal)") +
+  scale_x_log10()
+  
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+qplot(x = Volume, data = DF)+
+  geom_histogram(binwidth = .1)+
+  facet_wrap(~Year)+
+  labs(x="volume (Stocks)") +
+  scale_x_log10()
+
+```
+
+Both histograms are shown a very low turnover in 2001 and 2002 and also the trading value is a bit low  which lead to very little increased in index change as we see in the scatter plot (The changes of TASI and volume of monthly trading). Also, we can detect the relation between both histograms.
+
+
+In next, we can see very little bars for 30 and 31 days comparing with other days bar where not all month reach 30 or 31. So, I expect that. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+  ggplot(aes(x = Day, y = Change  , color = (Volume)),
+         data = DF) +
+      geom_bar(stat="identity", scale="free") +
+      ggtitle("Changes in TASI per day") +
+      labs(x="Day",y="changes (Points)") +
+      theme(plot.title = element_text( color="#666666", face="bold", size=20, hjust=0)) +
+      theme(axis.title = element_text( color="#666666", face="bold", size=15)) 
+```
+
+# Comparing between changing percentage per year:
+
+Next histogram is shown a highest change in TASI was in 2003-2004-2005 and lowest change in 2006 and 2008
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+  ggplot(data = DF,
+         aes(Year, Change_Percentage)) +
+    stat_summary(fun.y = sum, geom = "bar") +
+    labs(x="Year",y="changes %")+
+    scale_y_continuous( breaks = seq( -80,80,10 ))+
+    ggtitle("Changes in TASI per year") +
+    labs(x="Year",y="changes %") +
+    theme(plot.title = element_text( color="#666666", face="bold", size=15, hjust=0)) +
+    theme(axis.title = element_text( color="#666666", face="bold", size=15)) 
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+qplot(x = Year, y= High, data = DF, geom = 'boxplot')+
+  labs(x="Year",y="High Point") +
+ scale_y_log10()
+
+
+```
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+qplot(x = Year, y= Low, data = DF, geom = 'boxplot')+
+  labs(x="Year",y="Low Point") +
+  scale_y_log10()
+
+```
+from boxplot charts I noticed:
+- TASI reached the Highest points during 2005 and 2006.
+- TASI reached the lowest points during 1995,1996 and 1994 respectively.
+
+
+
+from 2003 until 2005 TASI index was mostly in positive way :
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+TASI0305<- subset(DF, Year < 2006 & Year > 2002)
+
+
+plo1<- ggplot(data = TASI0305,
+       aes(Month, Change_Percentage))+
+  stat_summary(fun.y = sum, geom = "bar")+
+  facet_wrap(~Year,ncol=6)+
+    labs(x="Month",y="changes %") +
+    theme(plot.title = element_text( color="#666666", face="bold", size=20, hjust=0)) +
+    theme(axis.title = element_text( color="#666666", face="bold", size=13))
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+plo2<- qplot(x = Month, y = Change_Percentage, data = TASI0305, geom = 'boxplot')+
+ facet_wrap(~Year)
+
+grid.arrange(plo1,plo2,ncol=2,top=textGrob("% Changes in TASI in trading of 2003 until 2005"))
+
+```
+
+
+It is shown highly increased in most months in the period from 2003 to 2005 especially in March 2005 and the larger decreased in October 2003.
+
+Correlation between Turnover, Volume, pervious closed and change :
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+names(cor.test(DF$Turnover, DF$Change))
+round(cor.test(DF$Turnover, DF$Change, meathod = "pearson")$estimate,3)
+
+
+```
+
+correlation between Turnover and Change = 0.076 -> good but too small
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+names(cor.test(DF$Volume, DF$Change))
+round(cor.test(DF$Volume, DF$Change, meathod = "pearson")$estimate,3)
+```
+
+correlation between Volumn and Change = 0.027 -> good but too small
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+names(cor.test(DF$Volume, DF$Turnover))
+round(cor.test(DF$Volume, DF$Turnover, meathod = "pearson")$estimate,3)
+
+```
+correlation between Volume and  Turnover = 0.55 -> very good correlation.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+names(cor.test(DF$Previous_Closed, DF$Change))
+round(cor.test(DF$Previous_Closed, DF$Change, meathod = "pearson")$estimate,3)
+
+```
+correlation between pervious closed and Change = -0.014 -> No correlation.
+
+
+find the Changes in TASI per month/year :
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(data = DF,
+       aes(Month, Change))+
+  geom_point(alpha=0.2, size=0.5,
+             position = position_jitter(h=0),
+             color= '#ac3907')+
+  geom_boxplot(alpha = 0.2, color = '#b1df01' )+
+  geom_line(stat = "summary",fun.y= max, group=1,color = '#665489')+
+  geom_line(stat = "summary",fun.y= min, group=1,color = '#665489')+
+  geom_line(stat = "summary",fun.y= mean, group=1,color = 'red')+
+  ggtitle("Summary of the TASI changes in each month/ Year")+
+  labs(x="Month",y="changes (Points)") +
+  facet_wrap(~Year)
+
+```
+There is interesting changes in all months of 2006 trading. As the mean of changes amoung months reached the maximum and minimum peak comaring with other years.
+
+Next plot is investegate the causes of the fast changes in TASI 2006. Regarding to the correlation between change and volume, I will check the Month aginest the Volume then volume aginest the change. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+ggplot(data = DF,
+       aes(Month, Volume))+
+  geom_point(alpha=0.2, size=0.5,
+             position = position_jitter(h=0),
+             color= '#ac3907')+
+  geom_boxplot(alpha = 0.2, color = '#b1df01' )+
+  geom_line(stat = "summary",fun.y= max, group=1,color = '#665489')+
+  geom_line(stat = "summary",fun.y= min, group=1,color = '#665489')+
+  geom_line(stat = "summary",fun.y= mean, group=1,color = 'red')+
+  labs(x="Month",y="volume (Stocks)") +
+  ggtitle("Summary of the Trading volume (stocks) in each month/ Year")+
+  scale_y_log10()+
+  facet_wrap(~Year)
+
+```
+We can observe from the previous chart a very high volume in trading of 2006 which exceed 1e+07 stocks.  
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(data = DF,
+       aes(Volume,Change))+
+  geom_line(stat = "summary",fun.y= mean, group=1,color = 'red')+
+  ggtitle("Summary of the Trading volume aginest change in each Year")+
+  scale_x_log10()+
+  labs(y="Change (Points)",x="volumn (Stocks)") +
+  facet_wrap(~Year)
+```
+Volatility of large volume of stocks led to huge change points in TASI.
+
+Looking closely to the effect of turnover againest closed point of the day:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(aes(x = Year, 
+           y = Closed, color = (Turnover)), 
+       data = DF) +
+       geom_jitter(alpha = 0.5 ,size=1)+
+  labs(x="Year",y="Closed point") +
+  ggtitle("Trading closed point vs. Turnover in Saudi Riyals per year")+
+  geom_line(stat = "summary",fun.y= mean, group=1,color = 'dark blue')
+  
+
+```
+
+The affect of the high turnover was very observed in 2004-2005-2006-2007 and 2008 shown high closed points during the mentioned years.
+# Final Plots and Summary:
+
+
+From the pervious part, It is clear that, in 2006 highly decreases and increases ocuured which is very observed through the distribution amonge the 3 first quarters. 
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+TASI2006<- subset(TASI, Year==2006)
+summary(TASI2006)
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+PA2006<- ggplot(data = TASI2006,
+       aes(Month,Change))+
+  geom_boxplot(aes(y=Change),color = '#b1df01',alpha = 0.2 )+
+  geom_line(aes(y=Change, colour="Max") , stat = "summary",fun.y= max, group=1)+
+  geom_line(aes(y=Change, colour="Average") , stat = "summary",fun.y= mean, group=1)+
+  geom_line(aes(y=Change, colour="Min") , stat = "summary",fun.y= min, group=1)
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+
+PC2006<-ggplot(data = TASI2006,
+       aes(x=Month))+
+  geom_boxplot(aes(y=Volume),color = '#b1df01',alpha = 0.2 )+
+  geom_line(aes(y=Volume, colour="Max") , stat = "summary",fun.y= max, group=1)+
+  geom_line(aes(y=Volume, colour="Average") , stat = "summary",fun.y= mean, group=1)+
+  geom_line(aes(y=Volume, colour="Min") , stat = "summary",fun.y= min, group=1)+
+  #scale_colour_manual("", 
+   #                   breaks = c("Volumn","Max", "Average", "Min"),
+    #                  values = c("yellow","orange", 'black', "blue")) +
+  theme(legend.position="bottom")
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+
+mylegend<-g_legend(PC2006)
+
+grid.arrange(arrangeGrob(PC2006 + theme(legend.position="none"),
+                         PA2006 + theme(legend.position="none"),
+                         nrow=2),
+             mylegend, nrow=2,heights=c(10, 1),
+             top=textGrob("The effect of volume and turnover trading on changes in 2006 ",gp=gpar(fontsize=10,font=3)))
+
+```
+
+
+Now, we get a clear idea about the fast changes in 2006 from the above plot. The volume increased very clearly in the second and third quarter of the year. It reached its peak in the middle of the year. Obviously, the first quarter of the year was weak in terms of volume and even changes in index.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(data = DF,
+       aes(Volume,Change))+
+  geom_line(aes(y=Volume, colour="Volumn"),alpha=0.2, size=0.5,
+             position = position_jitter(h=0), color="black")+
+  ggtitle("Change vs. Volume")+
+  labs(x="Volume (Stocks)",y="Change (Points)") +
+  scale_x_log10()
+```
+
+
+Now, we are pretty sure that, the changes will increase positively when volume getting high and vice versa. it is the main and important idea we have to keep in mind when trading.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+names(cor.test(TASI[2:6378,]$Closed, TASI[2:6378,]$Turnover))
+round(cor.test(TASI[2:6378,]$Closed, TASI[2:6378,]$Turnover, meathod = "pearson")$estimate,3)
+```
+
+Correlation between Turnover and closed  :
+correlation between Closed and  Turnover = 0.838  -> Strong correlation.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=9, fig.width= 13}
+ggplot(aes(x = Year, 
+           y = Closed, color = (Turnover)), 
+       data = DF) +
+       geom_jitter(alpha = 0.5 ,size=1)+
+  labs(x="Year",y="Closed point") +
+  ggtitle("Trading closed point vs. Turnover in Saudi Riyals per year")+
+  geom_line(stat = "summary",fun.y= mean, group=1,color = 'dark blue')  
+
+```
+
+From here we can see the distribution of turnover through out colors. So, We again see how the trading of 2006 reach the highest turnover ever among all representive years.
+
+# Reflection:
+
+During working with this I found myself getting a general idea about the main point we should considered during trading as Volume and turnover for example and the basic concept of trading, for example the main factors affecting trading indexes. I would be thankful if DirectFN Pro provides the number of stocks that positively increased and vice versa. Wherefore, I could have a complete overview of how each factor affects the number of increased or decreased stocks. 
+For future work, I downloaded the dataset of all index sectors and for stocks as well. The idea is to create a pattern which perdictes the positive and negative stocks. 
+
+------------------
+
+
+#*References*:
+1, R-bloggers. 2017. Plot Weekly or Monthly Totals in R | R-bloggers. [ONLINE] Available at: https://www.r-bloggers.com/plot-weekly-or-monthly-totals-in-r/. [Accessed 13 April 2017].
+
+2, printing multiple plot in on plot http://stackoverflow.com/questions/14860078/plot-multiple-lines-data-series-each-with-unique-color-in-r
+
+3, format ggplot and axis titles:  https://www.r-bloggers.com/how-to-format-your-chart-and-axis-titles-in-ggplot2/
+
+4, Get maximum value with in each group of values. http://stackoverflow.com/questions/25314336/extract-the-maximum-value-within-each-group-in-a-dataframe
+
+5, https://www.harding.edu/fmccown/r/
+
+6, R  Markdown Quick Tour http://rmarkdown.rstudio.com/authoring_quick_tour.html
+
+7, Common legend for combined ggplot http://stackoverflow.com/questions/13649473/add-a-common-legend-for-combined-ggplots
